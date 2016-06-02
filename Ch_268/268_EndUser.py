@@ -15,7 +15,15 @@ class highroller(object):
         self.sock.bind((self.HOST, self.PORT))
         self.sock.setblocking(True)
         self.recievingThread = threading.Thread(target=self.recieving) # Do we need to pass in self?
-        self.joined = False
+
+        # These two lines handle local checking of whether or not a player has gone bust or chosen to stand. It cuts
+        # down on server - load because the simple check can be done client side without need for the server to do
+        # anything.
+
+        # TODO Ensure that these two flags are correctly implemented clientside
+        self.bust = False
+        self.stand = False
+
 
         # Now we set up our encoding and decoding "cyphers". Note to self. 'I' in the re.compile function call is to
         # ignore the case of the matching string. This is so someone could type /QUIT or /QUiT
@@ -30,6 +38,8 @@ class highroller(object):
 
         # Here the programme handles the joining the server. This was originally in the main loop but is now in the
         # initialisation of the class.
+
+
         self.handle = str(input('Welcome to your BJNet client. To join the server, please the handle you\'d ' +
                                 'like to use in the chat room!\n\n> '))
         while not self.joined:
@@ -116,28 +126,29 @@ class highroller(object):
         I detail the potential codes that the server could potentially send to the client: the form the message will take
         and any other documentation I deem necessary for understanding the workings of this programme.
 
-        dy - Serer deals a card to the player. This is issued in response by the player to "hit me".
-            Message will take the form dy&VALUE with the value in caps being the most value of the card dealed.
+        de - Serer deals a card to the player. This is issued in response by the player to "hit me".
+            Message will take the form de&VALUE with the value in caps being the most value of the card dealed.
             If there message sent has two values (delimited by a ;) then the first value is the face down card while
             the second is the face up card (in a new game)
 
-        do - This is a broadcast message informing the user of what is happening around the table in terms of dealing
-        cards
-            Format is do&PLAYER;VALUE where PLAYER is the handle of the player and VALUE is the value of the card
-            dealed to them
+        sd - The server acknowledges the players request to stands
+
+        bu - The server has informed that the player has gone bust
 
         New Round - Puts out the call that it is a new round. Players are instructed to make their bets.
-            nr&
+            nr& Upon seeing this client side bust and stand values are also reset.
 
         New Credits for winning a bet
             nc&VALUE - Where VALUE is the amount of credits the player has added to their total. Since money already bet
             is stored seperately it accounts for both this and winnings.
 
-        Stand Confirmation Message (the server acknowledges that the player has chosen to stand,
-            st& -
+        st - Stand Confirmation Message. If it is followed by a 21 it means that the server has automatically made the
+        player stand because the player reached 21. If it's followed by bj it's because the player got blackjack.
 
         Relayed Chat Message
             ch - Message
+
+        ng& - This is the
 
         ul - When sent from the server this is a response to a query for public information about the current game.
 
@@ -154,6 +165,7 @@ class highroller(object):
         while True:
             message = str(input('> '))
             self.encoder(message) # For simplicity in the main loop, sending the message is handled by the encoder
+
 
 
 
