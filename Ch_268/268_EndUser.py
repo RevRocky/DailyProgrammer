@@ -22,12 +22,11 @@ class highroller(object):
         # Note. I see the regular expressions as a potential point of conflict for the application so it must be tested
         # well.
 
-        self.encodings = [(re.compile('^/bet', I),'be%'), (re.compile('^/quit', I), 'co%'), (re.compile('^/hit', I), 'ht%'),
-                          (re.compile('^/stand', I), 'sd%'), (re.compile('^/pinfo', I), 'pl%'),
-                          (re.compile('^/ginfo', I), 'ul%')]
+        self.encodings = [(re.compile('^/bet', re.I),'be&'), (re.compile('^/quit', re.I), 'co&'), (re.compile('^/hit', re.I), 'ht&'),
+                          (re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
+                          (re.compile('^/ginfo', re.I), 'ul&')]
 
         self.decodings = {}
-
 
         # Here the programme handles the joining the server. This was originally in the main loop but is now in the
         # initialisation of the class.
@@ -36,18 +35,27 @@ class highroller(object):
         while not self.joined:
             self.sock.sendto(str.encode('jo&'+self.handle), self.SERVER)
             data, null = self.sock.recvfrom(1024) # Now we recieve back whether or not the username is good
-            if data.decode('utf-8') == '300': # 300 - HTTP Code for Accepted. We've found the server and it's accepted us.
+            if data.decode('utf-8') == '300':  # 300 - HTTP Code for Accepted. We've found the server and it's accepted us.
                 print('300')
                 self.joined = True
                 print('Welcome Message')
             elif data.decode('utf-8') == '409': # 409 Wants us to keep choosing user-names
                 print('409')
                 self.handle = str(input('The username you have chosen is already in use. Please select a new' +
-                                             ' username\n\n> '))
+                                          ' username\n\n> '))
+
 
 
     def recieving(self):
-        pass
+        while not self.shutdown:
+            try:
+                self.tLock.acquire()
+                while True:
+                    message, addr = self.sock.recvfrom(2048)
+                    self.decoder(message)
+            except:
+                pass
+
 
     def encoder(self, message):
         '''A message is to consist of two parts a prefix and then a message body. Some messages that are simple commands
@@ -94,24 +102,46 @@ class highroller(object):
                 pre = regex_tuple[1]
 
                 # We may have to do something with our thread lock here. I'm not too certain.
-                self.sock.sendto(str.encode(pre + message), self.HOST) # Not sure of we just send to the host or the
+                self.sock.sendto(str.encode(pre + message), self.SERVER) # Not sure of we just send to the host or the
                 # sever tuple
                 return
 
         # If we've made it out of the loop we know that we have a chat message so we send the following.
-        self.sock.sendto((str.encode('ch%' + self.handle + ':' + pre + message)), self.HOST) # See Comment on Line 95
+        self.sock.sendto((str.encode('ch&' + self.handle + ' : ' + pre + ' ' + message)), self.SERVER)
         return
 
 
+    def decoder(self, message):
+        '''As is well established: messages consist of two things a prefix and then the body of the message Below,
+        I detail the potential codes that the server could potentially send to the client: the form the message will take
+        and any other documentation I deem necessary for understanding the workings of this programme.
 
+        dy - Serer deals a card to the player. This is issued in response by the player to "hit me".
+            Message will take the form dy&VALUE with the value in caps being the most value of the card dealed.
+            If there message sent has two values (delimited by a ;) then the first value is the face down card while
+            the second is the face up card (in a new game)
 
+        do - This is a broadcast message informing the user of what is happening around the table in terms of dealing
+        cards
+            Format is do&PLAYER;VALUE where PLAYER is the handle of the player and VALUE is the value of the card
+            dealed to them
 
+        New Round - Puts out the call that it is a new round. Players are instructed to make their bets.
+            nr&
 
+        New Credits for winning a bet
+            nc&VALUE - Where VALUE is the amount of credits the player has added to their total. Since money already bet
+            is stored seperately it accounts for both this and winnings.
 
+        Stand Confirmation Message (the server acknowledges that the player has chosen to stand,
+            st& -
 
+        Relayed Chat Message
+            ch - Message
 
-    def decoder(self):
-        pass
+        ul - When sent from the server this is a response to a query for public information about the current game.
+
+        pl - Response to a query about player information in the game'''
 
 
     def help(self):
@@ -121,18 +151,15 @@ class highroller(object):
         '''This is the main loop that handles player interface. Joining the server may be mapped out to another method
         but for now it is simply a part of the main loop It may also become part of the __init__ method.'''
 
-    while True:
-        message = str(input('Name: '))
-        self.encoder(message) # For simplicity in the main loop, sending the message is handled by the encoder
+        while True:
+            message = str(input('> '))
+            self.encoder(message) # For simplicity in the main loop, sending the message is handled by the encoder
 
 
 
 
 
-
-
-
-
+def main():
     myplayer = highroller()
     myplayer.main_loop()
 

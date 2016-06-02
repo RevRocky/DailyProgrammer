@@ -24,20 +24,23 @@ class cardserver(object):
         once core functionality is built and confirmed to work'''
 
         while not self.quitting:
-            data, addr = self.sock.recvfrom(2048)
-            decode_data = data.decode('utf-8')
-
-            # At this point we parse out the prefix and based upon that we call a certain slew of functions
-            pre, null, message = decode_data.partition('&')
-
-            # Here we may implement a check to ensure the user first joins the chat room but I may simply handle that
-            # client side.
             try:
-                self.dispatch_prefixes[pre](msg = message, conn = addr)
-            except KeyError: # Some other client is trying to connect to the server. This sends a message informing the
-                # user to get the proper client
-                self.sock.sendto(str.encode('This server only handles BJNet clients. To get a BJNet client visit: ' +
+                data, addr = self.sock.recvfrom(2048)
+                decode_data = data.decode('utf-8')
+
+                # At this point we parse out the prefix and based upon that we call a certain slew of functions
+                pre, null, message = decode_data.partition('&')
+
+                # Here we may implement a check to ensure the user first joins the chat room but I may simply handle that
+                # client side.
+                try:
+                    self.dispatch_prefixes[pre](msg = message, conn = addr)
+                except KeyError: # Some other client is trying to connect to the server. This sends a message informing the
+                    # user to get the proper client
+                    self.sock.sendto(str.encode('This server only handles BJNet clients. To get a BJNet client visit: ' +
                                             'website.com'), addr)
+            except:
+                pass
         self.sock.close()
 
     def new_connection(self, **kwargs):
@@ -120,6 +123,9 @@ class cardserver(object):
         '''This method gathers all publicly available information about other players and sends it back to the client
         who requested it. '''
         recipient = kwargs['conn']
+
+    def get_playerinfo(self, **kwargs):
+        pass
 
     def new_round(self):
         "Initialises a new round of gameplay."
