@@ -111,6 +111,12 @@ class highroller(object):
             if regex_tuple[0].fullmatch(pre):
                 pre = regex_tuple[1]
 
+                # This checks if the player has gone bust or has chosen to stand
+                if (pre == 'sd&' or pre == 'ht&') and (self.stand or self.bust):
+                    print("You have either gone bust or have chosen to stand and as such you can't do that action until"
+                          + " the next round.")
+                    return
+
                 # We may have to do something with our thread lock here. I'm not too certain.
                 self.sock.sendto(str.encode(pre + message), self.SERVER) # Not sure of we just send to the host or the
                 # sever tuple
