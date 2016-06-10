@@ -14,7 +14,7 @@ class highroller(object):
         self.sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
         self.sock.bind((self.HOST, self.PORT))
         self.sock.setblocking(True)
-        self.recievingThread = threading.Thread(target=self.recieving) # Do we need to pass in self?
+
 
         # These two lines handle local checking of whether or not a player has gone bust or chosen to stand. It cuts
         # down on server - load because the simple check can be done client side without need for the server to do
@@ -34,10 +34,11 @@ class highroller(object):
                           (re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
                           (re.compile('^/ginfo', re.I), 'ul&')]
 
-        self.decodings = {}
+        self.dispatch_prefixes = {'ch': self.print_chat} # TODO Complete this list.
 
         # Here the programme handles the joining the server. This was originally in the main loop but is now in the
         # initialisation of the class.
+
 
 
         self.handle = str(input('Welcome to your BJNet client. To join the server, please the handle you\'d ' +
@@ -54,6 +55,7 @@ class highroller(object):
                 self.handle = str(input('The username you have chosen is already in use. Please select a new' +
                                           ' username\n\n> '))
 
+        self.recievingThread = threading.Thread(target=self.recieving)  # Do we need to pass in self?
 
 
     def recieving(self):
@@ -66,34 +68,21 @@ class highroller(object):
             except:
                 pass
 
+    def decoder(self, message, addr):
+        '''This decoder handles all incomming messages. For complete details on the codec employed by this programme
+        take a peak at CodecDescriptions.txt'''
+
+        message = message.decode('utf-8')
+        pre, null, message = message.parttion('&')
+
+        try:
+            self.dispatch_prefixes[pre](msg = message) # We don't need to include address since it always goes through
+            # the server
 
     def encoder(self, message):
         '''A message is to consist of two parts a prefix and then a message body. Some messages that are simple commands
             will only have a prefix as there is no need to have a lengthy message. The prefix is seperated from the main
-            body with an '&' symbol.
-
-            A guide to what prefixes are used in this protocol is below.
-
-            ch - Chat Message. Server simply logs this and relays message to all connected clients
-                Format of a ch message is ch MESSAGE. Only MESSAGE is relayed to all clients.
-
-                NOTE: Any server instructions are sent as chat protocol messages.
-
-            co - Cashout. User leaves table. Connection is closed.
-
-            ht - Hit Me. User is requesting a card. Changes to game-state are first applied server side and then are
-            communicated to the player
-
-            sd - Player stands locking in their current score
-
-            bet - This prefix handles betting
-
-                bet AMOUNT
-
-            ul - A server side query to send all public information about the table to the requesting player
-
-            pl - Similar to the previous command except it returns all private information about the requesting player to
-            the player'''
+            body with an '&' symbol. '''
 
         # We start by splitting the first word off from the rest of the message and checking if it matches any one of
         # the outgoing prefixes. If it does not it is assumed to be a chat message and the ch prefix is appended to the
@@ -127,38 +116,9 @@ class highroller(object):
         return
 
 
-    def decoder(self, message):
-        '''As is well established: messages consist of two things a prefix and then the body of the message Below,
-        I detail the potential codes that the server could potentially send to the client: the form the message will take
-        and any other documentation I deem necessary for understanding the workings of this programme.
-
-        de - Serer deals a card to the player. This is issued in response by the player to "hit me".
-            Message will take the form de&VALUE with the value in caps being the most value of the card dealed.
-            If there message sent has two values (delimited by a ;) then the first value is the face down card while
-            the second is the face up card (in a new game)
-
-        sd - The server acknowledges the players request to stands
-
-        bu - The server has informed that the player has gone bust
-
-        New Round - Puts out the call that it is a new round. Players are instructed to make their bets.
-            nr& Upon seeing this client side bust and stand values are also reset.
-
-        New Credits for winning a bet
-            nc&VALUE - Where VALUE is the amount of credits the player has added to their total. Since money already bet
-            is stored seperately it accounts for both this and winnings.
-
-        st - Stand Confirmation Message. If it is followed by a 21 it means that the server has automatically made the
-        player stand because the player reached 21. If it's followed by bj it's because the player got blackjack.
-
-        Relayed Chat Message
-            ch - Message
-
-        ng& - This is the
-
-        ul - When sent from the server this is a response to a query for public information about the current game.
-
-        pl - Response to a query about player information in the game'''
+    def print_chat(self, **kwargs):
+        'This method prints chat messages. It mosly exists so that the rest of the decoder plays nice'
+        print(kwargs['msg'])
 
 
     def help(self):
