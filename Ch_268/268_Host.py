@@ -177,7 +177,7 @@ class CardServer(object):
 
             if client[1].stand and self.dealer.bust: # If the dealer goes bust, all players not bust win their bet
                 client[1].current_bet, client[1].credits = 0, (client[1].credits + int(1.25 * client[1].current_bet))
-                # Message is relayed to the player
+                # TODO communcate the results of this to the players.
             elif client[1].stand and (client[1].total_value > self.dealer.total_value): # Player wins!
                 client[1].current_bet, client[1].credits = 0, (client[1].credits + int(1.25 * client[1].current_bet))
                 # Relay message
