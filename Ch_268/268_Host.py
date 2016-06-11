@@ -1,6 +1,6 @@
 import socket
 import threading
-import time,
+import time
 import queue
 import re
 
@@ -56,13 +56,13 @@ class CardServer(object):
 
                 # We now add our decoded data to the queue.
                 self.task_queue.put((decode_data, addr))
-                threading.Thread(target = parser).start() # This launches a new thread.
+                threading.Thread(target = self.parser).start() # This launches a new thread.
 
             except:
                 pass
         self.sock.close()
 
-    def parser(self, message):
+    def parser(self):
         '''This method parses incoming messages and takes the appropriate action.
 
         For a complete breakdown of the Codec visit CodecDescriptions.txt.'''
@@ -101,9 +101,8 @@ class CardServer(object):
         # Unfortunately one of the pitfalls of my design is that messages will have to be re-encoded and have the 'ch'
         # prefix re-attached. Unlike how this will be approached client-side we can simply append the prefix.
 
-        message = str.encode('ch%' + message)
-        for user, info in self.clients.items():
-            client = info[1]
+        message = str.encode('ch&' + message)
+        for client, information in self.clients.items():
             self.sock.sendto(message, client)
 
     def shutdown(self, **kargs):

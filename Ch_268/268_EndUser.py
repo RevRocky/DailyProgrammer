@@ -40,7 +40,7 @@ class highroller(object):
         # initialisation of the class.
 
 
-
+        self.joined = False
         self.handle = str(input('Welcome to your BJNet client. To join the server, please the handle you\'d ' +
                                 'like to use in the chat room!\n\n> '))
         while not self.joined:
@@ -55,29 +55,25 @@ class highroller(object):
                 self.handle = str(input('The username you have chosen is already in use. Please select a new' +
                                           ' username\n\n> '))
 
-        self.recievingThread = threading.Thread(target=self.recieving)  # Do we need to pass in self?
+        threading.Thread(target=self.recieving).start()  # Do we need to pass in self?
 
 
     def recieving(self):
-        while not self.shutdown:
-            try:
-                self.tLock.acquire()
-                while True:
-                    message, addr = self.sock.recvfrom(2048)
-                    self.decoder(message)
-            except:
-                pass
+        while True:
+            # self.tLock.acquire()
+            message, addr = self.sock.recvfrom(2048)
+            message = message.decode('utf-8')
+            self.decoder(message)
 
-    def decoder(self, message, addr):
+
+    def decoder(self, message):
         '''This decoder handles all incomming messages. For complete details on the codec employed by this programme
         take a peak at CodecDescriptions.txt'''
 
-        message = message.decode('utf-8')
-        pre, null, message = message.parttion('&')
+        pre, null, message = message.partition('&')
+        self.dispatch_prefixes[pre](msg = message) # We don't need to include address since it always goes through
+        # the server
 
-        try:
-            self.dispatch_prefixes[pre](msg = message) # We don't need to include address since it always goes through
-            # the server
 
     def encoder(self, message):
         '''A message is to consist of two parts a prefix and then a message body. Some messages that are simple commands
