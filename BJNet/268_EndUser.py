@@ -25,6 +25,7 @@ class highroller(object):
         self.stand = False
 
 
+
         # Now we set up our encoding and decoding "cyphers". Note to self. 'I' in the re.compile function call is to
         # ignore the case of the matching string. This is so someone could type /QUIT or /QUiT
         # Note. I see the regular expressions as a potential point of conflict for the application so it must be tested
