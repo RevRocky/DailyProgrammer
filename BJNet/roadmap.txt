@@ -1,0 +1,15 @@
+1.  Finish Server Side Game Processing
+    * Ensure game functions are correctly disabled during end game and new game times.
+
+2. Flesh out client to handle gameplay.
+    * At this stage the client should be fully capable of playing black jack with the server.
+    * Most of this will include fleshing out the codec both server side and client side and ensuring messages work well.
+
+3. Figure out how to make the client a stand-alone executable so that it can be dispatched to beta testers.
+
+4. Make a IRC bot version of the black jack server.
+
+5. Once the server is working with out flaws. Think about methods for building a gui for the client. Options are likely
+to include pyQT or if I decide to go a more formal game development route, look into the possibility of having the client
+be written in the Unity Framework (the server-side code would still be python)
+    * At this point the proect should be ready for a release.
