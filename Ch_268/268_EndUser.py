@@ -69,7 +69,6 @@ class highroller(object):
     def decoder(self, message):
         '''This decoder handles all incomming messages. For complete details on the codec employed by this programme
         take a peak at CodecDescriptions.txt'''
-
         pre, null, message = message.partition('&')
         self.dispatch_prefixes[pre](msg = message) # We don't need to include address since it always goes through
         # the server
