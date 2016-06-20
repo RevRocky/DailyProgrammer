@@ -464,7 +464,7 @@ class CardServer(object):
             return
 
         if dealer.aces:
-            dealer.aces_logic()
+            self.aces_logic(dealer, mode = dealer)
 
         while dealer.total_value < 17:
             if len(self.deck) <= 1:
@@ -480,6 +480,8 @@ class CardServer(object):
                 self.broadcast("The dealer has drawn a " + str(new_card))
 
             # Now we do ace_logic and broadcast the result to the players.
+
+            ### TODO REWRITE ###
             if dealer.aces:
                 if dealer.aces_logic():
                     self.broadcast("The dealer has elected to keep his ace high and now has a total value of " +
