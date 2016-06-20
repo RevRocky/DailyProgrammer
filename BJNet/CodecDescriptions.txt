@@ -34,24 +34,28 @@ A message is to consist of two parts a prefix and then a message body. Some mess
         pl - Similar to the previous command except it returns all private information about the requesting player to
         the player
 
+
         Note: These message encodings are handled by the client, the parser only strips/reads the prefix and based upon
         the prefix it handles the message in the proper fashion.
 
         SERVER TO CLIENT MESSAGES
         __________________________________________________________________________
 
-         bet - This prefix handles betting
+        br - Broadcast Meta Prefix. Precedes a plain english message that informs the entire room of certain events!
 
-            bet AMOUNT
+         cb - Confirm Bet. This means that the server has confirmed the bet of the client.
 
-                   sd - The server acknowledges the players request to stands
+         ch - Chat Message. This is simply a relayed chat message.
 
-        New Round - Puts out the call that it is a new round. Players are instructed to make their bets.
-            nr& Upon seeing this client side bust and stand values are also reset.
-
-        New Credits for winning a bet
-            nc&VALUE - Where VALUE is the amount of credits the player has added to their total. Since money already bet
-            is stored seperately it accounts for both this and winnings.
+         nc - New Card.
+            Message format is nc&[CARD]_[NEW TOTAL]
 
         st - Stand Confirmation Message. If it is followed by a 21 it means that the server has automatically made the
         player stand because the player reached 21. If it's followed by bj it's because the player got blackjack.
+
+        ac - This is a message that lets the client know what their ace has been judged to be.
+            Form is ac&[HI/LO/MX]
+                If [MX] it is followed by the value of the player's cards should their ace be considered low. This
+                will be dealt with client side.
+
+
