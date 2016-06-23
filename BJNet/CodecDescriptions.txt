@@ -58,4 +58,20 @@ A message is to consist of two parts a prefix and then a message body. Some mess
                 If [MX] it is followed by the value of the player's cards should their ace be considered low. This
                 will be dealt with client side.
 
+        ui - This is a response to a query about user information around the table.
+            The message is sent multiple times each with a different user's information.
+            Format is:
+
+            ui&ALIAS,HAND,TOTALVALUE,CURRENTBET,STATUS
+                ALIAS - The name of the user
+                Hand - Their Current Hand (which cards they have)
+                Value - Current Value of said hand
+                CURRENT BET - The player's current bet
+                Status - In game, Bust, Black Jack, Stand
+
+                ---
+
+                NULL - If a player requests information about themselves when they are not currently in the game then
+                the message will simply be null.
+
 
