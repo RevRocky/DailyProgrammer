@@ -25,8 +25,9 @@ class CardServer(object):
 
         # Now we establish our dispatch prefixes.
         self.dispatch_prefixes = {'ch': self.relay_message, 'jo': self.new_connection,
-                                  'ul': self.get_userlist,
-                                  'qu': self.close_connection}  # Currently this is only a partial list.
+                                  'ul': self.player_info_processing,
+                                  'qu': self.close_connection, 'co': self.close_connection,
+                                  'ht': self.hit_me, 'sd': self.confirm_stand, 'ng': self.new_game}
 
         # Now we establish our game states and our stand-bust count.
         self.new_game = False
@@ -154,73 +155,77 @@ class CardServer(object):
         is defined in the __init__ method.'''
         pass
 
+    def player_info_processing(self, **kwargs):
+        '''This is a one-stop shop method for returning information both about the users as well as the dealer.
 
-    def get_userlist(self, **kwargs):
-        '''This method gathers all publicly available information about other players and sends it back to the client
-        who requested it.
+        There are three modes.
 
-        Note: it is highly likely that this will be depreciated in future builds of the game.'''
+        dealer - Returns information on the dealer
+        [user] - Returns information on desired user
+        self - Returns information on oneself
+        All - Returns information on all users currently playing the game'''
 
-        # TODO self and client/conn are not resolving in either of these two functions. It may well be worth
-        # looking into to see why they are not being handled properly.
+        try:
+            mode = kwargs['msg']
+            # TODO When testing it is highly likely that this will be a point of contention as spaces could easily
+            # muck with everything.
+        except ValueError: # If the message is blank then we want info of all the users
+            mode = 'all'
         recipient = kwargs['conn']
-        for client in self.clients: # Here we loop over the clients!
-            player = self.client[client][1]
 
-            # Now we get the player's current game status into a method that is easily available to send to the
-            # person who requested it.
-            if player.stand:
-                status = "stand"
-            elif player.natural:
-                status = "beej"
-            elif player.bust:
-                status = "bust"
-            else: # The player is currently in game
-                status = "NONE"
-
-            # Now we compile the message we're going to send.
-            message = self.clients[client][0] + ',' str(player.cards) + ',' + str(player.total_value) + ',' + \
-                                                    str(player.current_bet) + ',' + status
-            message = str.encode('ui&' + message)
-
-            # Now we fire this message off!
+        if mode == 'dealer':
+            message = self.get_player_info(self.dealer, 'dealer')
             self.sock.sendto(message, recipient)
+        elif mode == 'self'
+            try:
+                message = self.get_player_info(self.clients[recipient][1])
+                self.sock.sendto(message, recipient)
+                self.sock.sendto(str.encode("ch&SERVER: You currently have " + str(self.clients[recipient][1].credits) \
+                                            + "credits."), recipient)
+            except ValueError: # The specified user is not currently in the game
+                self.sock.sendto("ch%SERVER: You are not currently in the game!")
+                return
+        elif mode == 'all'
+            for client in self.clients.items():
+                message = self.get_player_info(client[1])
+                self.sock.sendto(message, recipient)
+                self.sock.sendto(str.encode("ch&SERVER: You currently have " + str(self.clients[recipient][1].credits) \
+                                            + "credits."), recipient)
+                self.sock.sendto('ch&There are currently ' + str(len(self.new_friends)) + 'people waiting to join!')
+        else: # They must have wanted a specific user's information.
+            for client in self.clients:
+                if client[0] == mode: # In this case mode is the name of the user we are looking for
+                    message = self.get_player_info(client[1])
+                    self.sock.sendto(message, recipient)
+            self.sock.sendto("ch&The user you were looking for could not be found.")
 
         # Given the nature of this message I think it is best practise we do a sign-off of sorts.
         message = "There are currently " + str(len(self.new_friends)) + ' users waiting to join the game!'
         message = str.encode(message)
         self.sock.sendto(message, recipient)
 
-
-
-    def get_playerinfo(self, **kwargs):
-        '''This method returns information about the player\'s current standing in the game. I reckon it may be
-        beneficial to return this information at more set times as well as upon the player's request.
-
-        This can easily be folded in to the user-list info thing. '''
-        conn = kwargs['conn']
-        try:
-            player = self.clients[conn][1]
-            # Now we get the player's current game status into a method that is easily available to send to the
-            # person who requested it.
-            if player.stand:
-                status = "stand"
-            elif player.natural:
-                status = "beej"
-            elif player.bust:
-                status = "bust"
-            else:  # The player is currently in game
-                status = "NONE"
+    def get_player_info(self, target, mode = 'user'):
+        'To avoid a messy method above, this function handles the actual retrieval of stored player information.'
+        mode == 'user':
+        if target.stand:
+            status = "stand"
+        elif target.natural:
+            status = "beej"
+        elif target.bust:
+            status = "bust"
+        else:  # The player is currently in game
+            status = "NONE"
 
             # Now we compile the message we're going to send.
-            message = self.clients[conn][0] + ','str(player.cards) + ',' + str(player.total_value) + ',' + \
-                                    str(player.current_bet) + ',' + status
-            message = str.encode('ui&' + message)
-            self.sock.sendto(message , conn)
-        except KeyError: # The player requesting the info is not currently in the game
-            self.sock.sendto(str.encode("ui&NULL"), conn)
+            if mode == 'user':
+                message = self.clients[client][0] + ',' \
+                str(target.cards) + ',' + str(target.total_value) + ',' + \
+                str(target.current_bet) + ',' + status
+                return str.encode('ui&' + message)
 
-
+            elif mode == 'dealer':
+                message = "Dealer," + str(target.cards[1:]) + ',' + str(target.total_value) + ',' + status
+                return str.encode('ui&' + message)
 
     def new_round(self):
         """ This method begins a new round by ensuring the player list is up to date AND dealing cards/ dealing
@@ -291,7 +296,9 @@ class CardServer(object):
         will begin."""
 
         # First the dealer's hand is dealt with.
-        self.game_time = ~self.game_time  # Changing our state! This should ensure only chat gets through to the server!
+        self.game_time = False  # Changing our state! This should ensure only chat gets through to the server!
+        self.end_game = True
+
         self.deal_server()  # Deals out the server's hand
         self.pay_winnings_clear_table()  # This method handles the winnings as well as clears the table
 
@@ -402,6 +409,14 @@ class CardServer(object):
             self.deck.append(temp)
         return self.deck
 
+    def hit_me(self, **kwargs):
+        'This method acts as a gate-keeper for the deal card function'
+        player = self.clients[kwargs['conn']][1]
+        if self.game_time and not (player.stand or player.bust): # If we are in game time we can give the player a card.
+            self.deal_card(msg=kwargs['msg'], conn=kwargs['conn'])
+        else:
+            self.sock.sendto("ch&SERVER: I'm afraid I can't let you do that", kwargs['conn'])
+
     def deal_card(self, **kwargs):
         '''This method draws a card and deals it to the recipient'''
         conn = kwargs['conn']
@@ -438,7 +453,7 @@ class CardServer(object):
         # judge for bust or blackjack.
 
 
-    def aces_logic(self, client, mode = client):
+    def aces_logic(self, client, mode = 'client'):
         '''This method handles whether or not an ace should be considered high or low by the game engine. In addition
         to this it sends messages to the player informing them of whether or not the ace has been considered high or low.
 
@@ -447,9 +462,9 @@ class CardServer(object):
         client - We are running this logic on the client. As a result the client parameter will be a socket object.
         dealer - We are running this logic for the dealer. Thus the client parameter will be a player object!'''
 
-        if mode == client:
-            player = self[client][1]
-        elif mode == dealer:
+        if mode == 'clien':
+            player = self.clients[client][1]
+        elif mode == 'dealer':
             player = client
 
         # We loop through the cards looking for the first ace. If it's ace high we set it to ace low. This is for
@@ -476,10 +491,10 @@ class CardServer(object):
             player.total_value += 10
             card = 11
             if mode == client:
-                self.sock.sendto('ac&MX'+ str(player.total_value - 10)) # We send the low value as well.
+                self.sock.sendto('ac&MX,'+ str(player.total_value - 10)) # We send the low value as well.
             else:
                 self.broadcast('The dealer has chosen to keep his ace high but, should his ace not be high his hand ' +
-                               'would have value of ' +str(player.total_value))
+                               'would have value of ' +str(player.total_value - 10))
 
 
         else:
@@ -495,12 +510,16 @@ class CardServer(object):
         conn = kwargs['conn']
         bet = kwargs['message']
         player = self.clients[conn][1] # Cleans u[ the code.
-
-        player.credits, player.current_bet = (player.credits - bet), bet
+        if bet <= player.credits: # Checks to make sure the bet is not over the amount of money they have
+            player.credits, player.current_bet = (player.credits - bet), bet
+            self.sock.sendto(str.encode("cb%Accepted"), conn)
+        else:
+            self.sock.sendto(str.encode("cb&Declined"), conn)
 
     def confirm_stand(self, flag = None, **kwargs):
         '''Confirm that the player has chosen to stand and lck in their current value.'''
         conn = kwargs['conn']
+        player = self.clients[conn][1]
 
         self.stand_bust_count += 1 # Incrementing our stand and bust tracker by one.
         if flag == 21:

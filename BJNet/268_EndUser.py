@@ -1,4 +1,7 @@
-import socket, time, threading, re
+import socket
+import re
+import threading
+import time
 
 
 class highroller(object):
@@ -21,8 +24,8 @@ class highroller(object):
         # anything.
 
         # TODO Ensure that these two flags are correctly implemented clientside
-        self.bust = False
-        self.stand = False
+        #self.bust = False
+        #self.stand = False
 
 
 
@@ -33,7 +36,8 @@ class highroller(object):
 
         self.encodings = [(re.compile('^/bet', re.I),'be&'), (re.compile('^/quit', re.I), 'co&'), (re.compile('^/hit', re.I), 'ht&'),
                           (re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
-                          (re.compile('^/ginfo', re.I), 'ul&')]
+                          (re.compile('^/ginfo', re.I), 'ul&'), re.compile('^/pinfo', re.I), re.compile('^/force'),]
+
 
         self.dispatch_prefixes = {'ch': self.print_chat} # TODO Complete this list.
 
@@ -96,11 +100,12 @@ class highroller(object):
             if regex_tuple[0].fullmatch(pre):
                 pre = regex_tuple[1]
 
+                # TODO Evaluate if this is still valid in the current framework
                 # This checks if the player has gone bust or has chosen to stand
-                if (pre == 'sd&' or pre == 'ht&') and (self.stand or self.bust):
-                    print("You have either gone bust or have chosen to stand and as such you can't do that action until"
-                          + " the next round.")
-                    return
+                #if (pre == 'sd&' or pre == 'ht&') and (self.stand or self.bust):
+                #    print("You have either gone bust or have chosen to stand and as such you can't do that action until"
+                #          + " the next round.")
+                #    return
 
                 # We may have to do something with our thread lock here. I'm not too certain.
                 self.sock.sendto(str.encode(pre + message), self.SERVER) # Not sure of we just send to the host or the
@@ -111,11 +116,62 @@ class highroller(object):
         self.sock.sendto((str.encode('ch&' + self.handle + ' : ' + pre + ' ' + message)), self.SERVER)
         return
 
+    # Below is a host of methods that allow the client to correctly handle and display any incoming messages.
 
     def print_chat(self, **kwargs):
-        'This method prints chat messages. It mosly exists so that the rest of the decoder plays nice'
+        'This method prints chat messages. It mostly exists so that the rest of the decoder plays nice'
         print(kwargs['msg'])
 
+    def print_newcard(self, **kwargs):
+        'This method handles and correctly formats a message when the end user gets a new card'
+
+            card, null, total = kwargs['msg'].partition(_)
+            print("You have been dealt a " + str(card) + ". This brings the total value of your cards to" + \
+                str(total))
+
+    def print_user_info(self, **kwargs):
+        '''This method handles and formats user information. It only handles one
+        user at a time (requests, even whole table requests are sent piece meal.'''
+
+        uinfo_table = ["User: ", "Cards: ", "Hand Value: ", "Current Bet: ", "Game Status: "]
+        # TODO look into how the list of cards is being sent from server to client. This could
+        # muck up how the table is parsed below. 
+        message = kwargs['msg'].split(',')  # Splits our string up into a table. 
+
+        for info, loc in enumerate(message):
+            print('\n' + uinfo_table[loc] +  str(info))
+
+
+    def print_bet_confirm(self, **kwargs):
+        'Correctly formats a message from the server informing the user that the bet has been confirmed.'
+        msg = kwargs['msg']
+        if msg == "Accepted":
+            print("The dealer acknowledges your bet")
+        else:
+            print("You have bet more monies than you currently have. Enter a new figure after /bet")
+
+
+    def print_stand_confirm(self, **kwargs):
+        'Correctly prints a confirmation of a stand message'
+        print(kwargs['msg'])
+
+    def print_broadcast(self,**kwargs):
+        'Basically it adds \'BROADCAST\' in front of a broadcast message'
+        print("BROADCAST: " + kwargs['msg'])
+
+    def print_ace(self, **kwargs):
+        'A print method handling ace confirmation messages!'
+        ace = kwargs['msg']
+        if ace == 'HI':
+            print("Big Brother Says Your Ace is best off high!")
+        elif ace == 'LO':
+            print("Big Brother thinks your Ace is best off being kept low!")
+        elif ace == 'MX': # Note: Ace High Value is returned in another message. May want to inform users of this
+            null , null , tv = ace.split(',')
+            print("The logic of the server sees advantages to your ace being either high or low. For what it's worth," +
+            " should your ace be counted as low you'd have a total value of " + tv)
+
+    def
 
     def help(self):
         print('Help Documentation. Documentation will likely be read in from a text file for the sake of orderly code.')
