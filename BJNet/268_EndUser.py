@@ -18,17 +18,6 @@ class highroller(object):
         self.sock.bind((self.HOST, self.PORT))
         self.sock.setblocking(True)
 
-
-        # These two lines handle local checking of whether or not a player has gone bust or chosen to stand. It cuts
-        # down on server - load because the simple check can be done client side without need for the server to do
-        # anything.
-
-        # TODO Ensure that these two flags are correctly implemented clientside
-        #self.bust = False
-        #self.stand = False
-
-
-
         # Now we set up our encoding and decoding "cyphers". Note to self. 'I' in the re.compile function call is to
         # ignore the case of the matching string. This is so someone could type /QUIT or /QUiT
         # Note. I see the regular expressions as a potential point of conflict for the application so it must be tested
@@ -38,8 +27,10 @@ class highroller(object):
                           (re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
                           (re.compile('^/ginfo', re.I), 'ul&'), re.compile('^/pinfo', re.I), re.compile('^/force'),]
 
-
-        self.dispatch_prefixes = {'ch': self.print_chat} # TODO Complete this list.
+        self.dispatch_prefixes = {'ch': self.print_chat, 'cb': self.print_bet_confirm, 'st': self.print_stand_confirm,
+                                  'nc': self.print_newcard, 'br': self.print_broadcast, 'ac': self.print_ace,
+                                  'ui': self.print_user_info}
+        # TODO Complete this list.
 
         # Here the programme handles the joining the server. This was originally in the main loop but is now in the
         # initialisation of the class.
@@ -99,14 +90,6 @@ class highroller(object):
         for regex_tuple in self.encodings:
             if regex_tuple[0].fullmatch(pre):
                 pre = regex_tuple[1]
-
-                # TODO Evaluate if this is still valid in the current framework
-                # This checks if the player has gone bust or has chosen to stand
-                #if (pre == 'sd&' or pre == 'ht&') and (self.stand or self.bust):
-                #    print("You have either gone bust or have chosen to stand and as such you can't do that action until"
-                #          + " the next round.")
-                #    return
-
                 # We may have to do something with our thread lock here. I'm not too certain.
                 self.sock.sendto(str.encode(pre + message), self.SERVER) # Not sure of we just send to the host or the
                 # sever tuple
@@ -124,10 +107,10 @@ class highroller(object):
 
     def print_newcard(self, **kwargs):
         'This method handles and correctly formats a message when the end user gets a new card'
-
-            card, null, total = kwargs['msg'].partition(_)
-            print("You have been dealt a " + str(card) + ". This brings the total value of your cards to" + \
+        card, null, total = kwargs['msg'].partition(_)
+        print("You have been dealt a " + str(card) + ". This brings the total value of your cards to" + \
                 str(total))
+
 
     def print_user_info(self, **kwargs):
         '''This method handles and formats user information. It only handles one
@@ -171,8 +154,6 @@ class highroller(object):
             print("The logic of the server sees advantages to your ace being either high or low. For what it's worth," +
             " should your ace be counted as low you'd have a total value of " + tv)
 
-    def
-
     def help(self):
         print('Help Documentation. Documentation will likely be read in from a text file for the sake of orderly code.')
 
@@ -183,10 +164,6 @@ class highroller(object):
         while True:
             message = str(input('> '))
             self.encoder(message) # For simplicity in the main loop, sending the message is handled by the encoder
-
-
-
-
 
 
 def main():

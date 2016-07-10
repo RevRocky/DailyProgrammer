@@ -49,11 +49,6 @@ class CardServer(object):
 
         # TODO Ensure this variable is properly updated in the presence of threading
 
-
-
-
-
-
     def listen_loop(self):
         '''This is the main loop which listens for in coming connections and when messages are received it handles
         the messages accordingly. The only problem with it currently that it is not threaded and were it to be threaded:
@@ -90,7 +85,6 @@ class CardServer(object):
             self.sock.sendto(str.encode('This server only handles BJNet clients. To get a BJNet client visit: ' +
                                         'website.com'), addr)
 
-
     def new_connection(self, **kwargs):
         handle = kwargs['msg']
         connection = kwargs['conn']
@@ -115,7 +109,7 @@ class CardServer(object):
     def close_connection(self, **kwargs):
         '''If the server is in the END GAME state this allows a user to safely close their connection.'''
 
-        conn = kwargs[conn]
+        conn = kwargs['conn']
         if self.end_game:  # If it's not the end game then we do not want to have players quitting midstream.
             # TODO In a later build of this server I will allow for saving of one's purse. That's for a later time tho.
             # TODO Correctly impliment broadcasting of when someone leaves the room.
@@ -176,16 +170,16 @@ class CardServer(object):
         if mode == 'dealer':
             message = self.get_player_info(self.dealer, 'dealer')
             self.sock.sendto(message, recipient)
-        elif mode == 'self'
+        elif mode == 'self':
             try:
-                message = self.get_player_info(self.clients[recipient][1])
+                message = self.get_player_info(self.clients[recipient])
                 self.sock.sendto(message, recipient)
                 self.sock.sendto(str.encode("ch&SERVER: You currently have " + str(self.clients[recipient][1].credits) \
                                             + "credits."), recipient)
             except ValueError: # The specified user is not currently in the game
                 self.sock.sendto("ch%SERVER: You are not currently in the game!")
                 return
-        elif mode == 'all'
+        elif mode == 'all':
             for client in self.clients.items():
                 message = self.get_player_info(client[1])
                 self.sock.sendto(message, recipient)
@@ -206,7 +200,8 @@ class CardServer(object):
 
     def get_player_info(self, target, mode = 'user'):
         'To avoid a messy method above, this function handles the actual retrieval of stored player information.'
-        mode == 'user':
+
+        handle, target = target[0], target[1]
         if target.stand:
             status = "stand"
         elif target.natural:
@@ -217,15 +212,15 @@ class CardServer(object):
             status = "NONE"
 
             # Now we compile the message we're going to send.
-            if mode == 'user':
-                message = self.clients[client][0] + ',' \
-                str(target.cards) + ',' + str(target.total_value) + ',' + \
-                str(target.current_bet) + ',' + status
-                return str.encode('ui&' + message)
+        if mode == 'user':
+            message = handle + ',' + \
+            str(target.cards) + ',' + str(target.total_value) + ',' + \
+            str(target.current_bet) + ',' + status
+            return str.encode('ui&' + message)
 
-            elif mode == 'dealer':
-                message = "Dealer," + str(target.cards[1:]) + ',' + str(target.total_value) + ',' + status
-                return str.encode('ui&' + message)
+        elif mode == 'dealer':
+            message = "Dealer," + str(target.cards[1:]) + ',' + str(target.total_value) + ',' + status
+            return str.encode('ui&' + message)
 
     def new_round(self):
         """ This method begins a new round by ensuring the player list is up to date AND dealing cards/ dealing
@@ -244,8 +239,8 @@ class CardServer(object):
         self.broadcast('Bet Now')
         self.collecting_bets = True
 
-        # TODO It may be good to implement a counter so that the function exits early if all of the players have bet
-        threading.Thread(target=self.countdown, args=(self.collecting_bets, 90)).start()
+        # TODO Check to ensure that the function returns how we think it ought to.
+        threading.Thread(target=self.countdown, args=('new', 90)).start()
         while self.collecting_bets:
             pass # Like with our end game function we assume the computer is still listening
 
@@ -280,7 +275,7 @@ class CardServer(object):
 
         if self.dealer.total_value == 21: # Dealer has blackjack.
             self.dealer.natural = True
-        elif 17 <= self.dealer.total < 21: # Dealer stands!
+        elif 17 <= self.dealer.total_value < 21: # Dealer stands!
             self.dealer.stand = True
 
         # Broadcasts the dealer's face up card to the table.
@@ -305,12 +300,13 @@ class CardServer(object):
         # Time left tracks whether or not there is time left in the countdown. It starts at true. The countdown function
         # returns a False. Once this is done we can exit the while loop below and feel confident in starting a new game.
 
-        self.broadcast("quit nao")
-        self.end_game = True
-        threading.Thread(target=self.countdown, args=self.end_game).start()
+        self.broadcast("If you'd like to disconnect from the server, you can now do so safely. Type /quit into your " +
+                       "console")
+        threading.Thread(target=self.countdown, args='end').start()
 
         # Note we should still be in the listening loop so this bit may all be redundant. We will keep the structure
         # incase testing reveals that we are not still in the listening loop.
+        # TODO ensure this works.
         while self.end_game:
             pass
 
@@ -330,11 +326,12 @@ class CardServer(object):
             self.sock.sendto(('cb&' + str(bet)), conn) # Sends the player a message letting them know their bet was
             # confirmed.
 
-
         else:  # It's not a new game so we don't want to process any bets.
-            #  TODO Determine whether or not this should be handled client side or not.
+            self.sock.sendto('ch&SERVER: You can\'t bet right now')
 
-    def countdown(self, target_attribute, seconds_left = 60):
+    def countdown(self, mode, seconds_left = 60):
+        'This method counts down for us in various situations'
+        mode_dict = {'new': self.collecting_bets, 'end': self.end_game} # Is this the best place for this?
         while seconds_left > 0:
             if seconds_left in [5, 15, 30, 45]:
                 self.broadcast(seconds_left)  # Lets players know that there is only a certain amount of time left
@@ -342,12 +339,7 @@ class CardServer(object):
             print("Next Phase in" + str(seconds_left))
             time.sleep(1)
             seconds_left -= 1 # We increment down.
-        target_attribute = False
-
-
-
-
-
+        mode_dict[mode] = False
 
     def pay_winnings_clear_table(self):
 
@@ -356,23 +348,45 @@ class CardServer(object):
 
         for client in self.clients:
 
-            if client[1].stand and self.dealer.bust: # If the dealer goes bust, all players not bust win their bet
+            if client[1].stand and self.dealer.bust: # If the dealer goes bust, all players not bust win their bet\
+                self.sock.sendto(str.encode("ch&SERVER: The dealer has gone bust. Since you also did not go bust, "
+                                            "you have won " + str( 1.25 * client[1].current_bet) +
+                                            " credits. You now have"
+                                            + " a total of" + str((client[1].credits + int(1.25 * client[1].current_bet)))
+                                            + " credits!"), client)
                 client[1].current_bet, client[1].credits = 0, (client[1].credits + int(1.25 * client[1].current_bet))
-                # Relay Message
 
             elif client[1].stand and (client[1].total_value > self.dealer.total_value): # Player wins!
+                self.sock.sendto(str.encode("ch&SERVER: Your hand is greater than the dealer. As a result you have won "
+                                            + str(1.25 * client[1].current_bet) +
+                                            " credits. You now have a total of" +
+                                            str((client[1].credits + int(1.25 * client[1].current_bet)))
+                                            + " credits!"), client)
                 client[1].current_bet, client[1].credits = 0, (client[1].credits + int(1.25 * client[1].current_bet))
-                # Relay message
 
             elif client[1].natural and not self.dealer.natural: # Player has black jack
+                self.sock.sendto(str.encode("ch&SERVER: Blackjack! You've hit the jackpot and as a result you will "
+                                            + "receive double what you bet on the round"
+                                            + str(2 * client[1].current_bet) +
+                                            " credits. You now have a total of" +
+                                            str((client[1].credits + int(2 * client[1].current_bet)))
+                                            + " credits!"), client)
                 client[1].current_bet, client[1].credits = 0, (client[1].credits + int(2 * client[1].current_bet))
-                # Relay message
+
+
 
             elif client[1].natural and self.dealer.natural: # Both player and dealer have black jack
+                self.sock.sendto(str.encode("ch&SERVER: Blackjack! You've hit the jackpot but in some twist of fate "
+                                            + "the dealer has as well. As a result you will receive your original bet of "
+                                            + str(client[1].current_bet) + " credits back. You now have a total of"
+                                            + str((client[1].credits + int(1 * client[1].current_bet)))
+                                            + " credits."), client)
                 client[1].current_bet, client[1].credits = 0, (client[1].credits + int(1 * client[1].current_bet))
-                # Relay message
+
 
             else: # The player has lost in some fashion. either the dealer had a higher hand OR the player went bust.
+                self.sock.sendto(str.encode("ch&SERVER: You have lost, as a result your wager is forefeit. You now have "
+                                            + str(client[1].credits + " credits."), client))
                 client[1].current_bet = 0
                 # The message is relayed to the player
 
@@ -420,15 +434,15 @@ class CardServer(object):
     def deal_card(self, **kwargs):
         '''This method draws a card and deals it to the recipient'''
         conn = kwargs['conn']
-        player = self.clients[connection][1] # For quicker reference to the actual playerv object.
+        player = self.clients[conn][1] # For quicker reference to the actual player object.
 
-        ### THIS COULD BE AN ISSUE WITH ALL OF OUR THREADS ###
         if len(self.deck) < 2:
             self.construct_deck()
 
         new_card = self.deck.pop(0)
 
-        if len(player.cards) < 2 and new_card == 1: # This makes it much quicker/easier to handle a blackjack in a new game.
+        if len(player.cards) < 2 and new_card == 1:  # This makes it much quicker/easier
+            # to handle a blackjack in a new game.
             player.aces = True
             player.cards.append(11) # Add it to their hand
             player.total_value += 11 # Update their total value.
@@ -439,7 +453,7 @@ class CardServer(object):
             player.cards.append(1)
             player.total_value += 1
             self.aces_logic(self.clients[conn])
-            # Ace Message handling will be handled in the aces logic function.
+            # TODO ensure that messages are sent in a clear fashion by our aces logic
 
         else:  # The player hasn't drawn an ace so we don't need to do anything fancy.
             player.cards.append(new_card)
@@ -450,8 +464,17 @@ class CardServer(object):
                 # Will have to send an ace flip message.
             self.sock.sendto(('nc&'+ str(new_card) + '_' + str(player.total_value))) # Informing the players of their
             # new card.
-        # judge for bust or blackjack.
-
+        if player.total_value == 21 and len(player.cards) == 2:  # The player has blackjack
+            self.confirm_stand('bj', conn = conn)
+        elif player.total_value == 21:
+            self.confirm_stand('21', conn = conn)
+        elif player.total_value > 21:  # The player has gone bust. Only time we have to explicitly handle everything.
+            self.stand_bust_count += 1
+            player.bust = True
+            self.sock.sendto('sd&With a total over 21, you have gone bust and as such you will forefeit your bet and'
+                             + ' sit out until the next round.')
+            if self.stand_bust_count == len(self.clients):  # If everyone's exited we want to end the round,
+                self.end_round()
 
     def aces_logic(self, client, mode = 'client'):
         '''This method handles whether or not an ace should be considered high or low by the game engine. In addition
@@ -462,7 +485,7 @@ class CardServer(object):
         client - We are running this logic on the client. As a result the client parameter will be a socket object.
         dealer - We are running this logic for the dealer. Thus the client parameter will be a player object!'''
 
-        if mode == 'clien':
+        if mode == 'client':
             player = self.clients[client][1]
         elif mode == 'dealer':
             player = client
@@ -510,6 +533,10 @@ class CardServer(object):
         conn = kwargs['conn']
         bet = kwargs['message']
         player = self.clients[conn][1] # Cleans u[ the code.
+
+        if self.game_time or self.end_game: # Perhaps a redundant check to ensure we are in the right state
+            self.sock.sendto(str.encode("cb&Declined"), conn)
+            return
         if bet <= player.credits: # Checks to make sure the bet is not over the amount of money they have
             player.credits, player.current_bet = (player.credits - bet), bet
             self.sock.sendto(str.encode("cb%Accepted"), conn)
@@ -522,7 +549,7 @@ class CardServer(object):
         player = self.clients[conn][1]
 
         self.stand_bust_count += 1 # Incrementing our stand and bust tracker by one.
-        if flag == 21:
+        if flag == '21':
             self.sock.sendto(str.encode('sd&You have a total of 21, as a result you decide to stand. Winnings will be '
                                         + 'paid once a new round starts'))
             player.stand = True
@@ -542,6 +569,10 @@ class CardServer(object):
             self.sock.sendto(str.encode('sd&The dealer nods, acknowledging your request to stand. Winnings will be payed'
                            + ' out once the round is finished'), conn)
             player.stand = True
+        if self.stand_bust_count == len(self.clients):
+            self.end_round()
+
+            # TODO Check to make sure we enter the end game state at the appropriate time.
 
     def deal_server(self):
         '''Once every player has ether chosen to stand or has gone bust, the dealer then deals cards to himself. This
@@ -549,27 +580,25 @@ class CardServer(object):
         The server will check the total value of it's cards. Dealer stands on soft seventeen. Dealer will stand if
         the total value of their cards is <= 17. Before each turn; the value of the hands will be evaluated with aces
         both high and low. '''
-        # TODO The broadcasted messages could be tweaked to come off as more natural sounding in future builds of the
-        # TODO programme.
         # Note for future reference. Handling of a dealer black jack is done in the new game method.
         # A soft seventeen is also handled during the beginning of the new game. To simplify code flow we will still go
         # into this function but exit out rather quickly.
+
         dealer = self.dealer # This just simplifies some of the expressions below
 
         self.broadcast("The dealer flips over the card in the hole to reveal a " + str(dealer.cards[0]) + '! This gives'
-                      + ' them a hand totaling ' str(dealer.total_value)+ '.')
+                        + ' them a hand totaling ' + str(dealer.total_value)+ '.')
 
         if dealer.natural:
             self.broadcast('The dealer smirks briefly as they look at their hand. The smirk disappears as they begin to'
-                           + 'look around the table to see if anyone is even going to get the "push"')
+                           + ' look around the table to see if anyone is even going to get the "push"')
             return
         elif dealer.stand:
-            self.broadcast('Since the dealer has a total value above 17, the rules dictate that they must stand.'
+            self.broadcast('Since the dealer has a total value above 17, the rules dictate that they must stand. '
                           + 'It\'s now time to pay out any winnings!')
 
-
         if dealer.aces:
-            self.aces_logic(dealer, mode = dealer)
+            self.aces_logic(dealer, mode = 'dealer')
 
         while dealer.total_value < 17:
             if len(self.deck) <= 2:
@@ -586,10 +615,8 @@ class CardServer(object):
                 self.broadcast("The dealer has drawn a " + str(new_card))
 
             # Now we do ace_logic and broadcast the result to the players.
-
-
             if dealer.aces:
-               self.aces_logic(dealer, mode = dealer)
+               self.aces_logic(dealer, mode = 'dealer')
             else: # The dealer does not have an ace.
                 self.broadcast("This brings the total value of the dealers hand to: " + str(dealer.total_value))
 
@@ -602,7 +629,7 @@ class CardServer(object):
         else: # The dealer has gone bust.
             dealer.bust = True
             self.broadcast("LUCKY! The dealer has drawn over 21 and has gone bust. All those with totals under 21 will"
-                            + " recieve payouts.")
+                            + " receive payouts.")
 
 
 class Player(object):
