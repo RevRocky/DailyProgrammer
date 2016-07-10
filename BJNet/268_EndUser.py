@@ -22,7 +22,6 @@ class highroller(object):
         # ignore the case of the matching string. This is so someone could type /QUIT or /QUiT
         # Note. I see the regular expressions as a potential point of conflict for the application so it must be tested
         # well.
-
         self.encodings = [(re.compile('^/bet', re.I),'be&'), (re.compile('^/quit', re.I), 'co&'), (re.compile('^/hit', re.I), 'ht&'),
                           (re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
                           (re.compile('^/ginfo', re.I), 'ul&'), re.compile('^/pinfo', re.I), re.compile('^/force'),]
