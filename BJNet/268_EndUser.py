@@ -4,7 +4,7 @@ import threading
 import time
 
 
-class highroller(object):
+class Highroller(object):
 
     def __init__(self):
         # Here we define some basic instance variables as well as setting up our socket.
@@ -34,14 +34,26 @@ class highroller(object):
         # Here the programme handles the joining the server. This was originally in the main loop but is now in the
         # initialisation of the class.
 
-
         self.joined = False
         self.handle = str(input('Welcome to your BJNet client. To join the server, please the handle you\'d ' +
                                 'like to use in the chat room!\n\n> '))
         while not self.joined:
             self.sock.sendto(str.encode('jo&'+self.handle), self.SERVER)
-            data, null = self.sock.recvfrom(1024) # Now we recieve back whether or not the username is good
-            if data.decode('utf-8') == '300':  # 300 - HTTP Code for Accepted. We've found the server and it's accepted us.
+            timeout = 60
+            while timeout > 0:
+                try:
+                    data, null = self.sock.recvfrom(1024)  # Now we recieve back whether or not the username is good
+                    break
+                finally:
+                    time.sleep(.5)
+                    timeout -= .5
+
+            if timeout == 0:
+                print("503. Server Timeout. The BJ net server at " + self.HOST + "does not appear to be online")
+
+
+            if data.decode('utf-8') == '300':
+                # 300 - HTTP Code for Accepted. We've found the server and it's accepted us.
                 print('300')
                 self.joined = True
                 print('Welcome Message')
@@ -50,29 +62,26 @@ class highroller(object):
                 self.handle = str(input('The username you have chosen is already in use. Please select a new' +
                                           ' username\n\n> '))
 
-        threading.Thread(target=self.recieving).start()  # Do we need to pass in self?
+        threading.Thread(target=self.receiving).start()  # Do we need to pass in self?
 
-
-    def recieving(self):
+    def receiving(self):
         while True:
             # self.tLock.acquire()
             message, addr = self.sock.recvfrom(2048)
             message = message.decode('utf-8')
             self.decoder(message)
 
-
     def decoder(self, message):
-        '''This decoder handles all incomming messages. For complete details on the codec employed by this programme
-        take a peak at CodecDescriptions.txt'''
+        """This decoder handles all incoming messages. For complete details on the codec employed by this programme
+        take a peak at CodecDescriptions.txt"""
         pre, null, message = message.partition('&')
-        self.dispatch_prefixes[pre](msg = message) # We don't need to include address since it always goes through
+        self.dispatch_prefixes[pre](msg=message)  # We don't need to include address since it always goes through
         # the server
 
-
     def encoder(self, message):
-        '''A message is to consist of two parts a prefix and then a message body. Some messages that are simple commands
+        """A message is to consist of two parts a prefix and then a message body. Some messages that are simple commands
             will only have a prefix as there is no need to have a lengthy message. The prefix is seperated from the main
-            body with an '&' symbol. '''
+            body with an '&' symbol."""
 
         # We start by splitting the first word off from the rest of the message and checking if it matches any one of
         # the outgoing prefixes. If it does not it is assumed to be a chat message and the ch prefix is appended to the
@@ -107,25 +116,24 @@ class highroller(object):
     def print_newcard(self, **kwargs):
         'This method handles and correctly formats a message when the end user gets a new card'
         card, null, total = kwargs['msg'].partition(_)
-        print("You have been dealt a " + str(card) + ". This brings the total value of your cards to" + \
-                str(total))
-
+        print("You have been dealt a " + str(card) + ". This brings the total value of your cards to" +
+              str(total))
 
     def print_user_info(self, **kwargs):
-        '''This method handles and formats user information. It only handles one
-        user at a time (requests, even whole table requests are sent piece meal.'''
+        """This method handles and formats user information. It only handles one
+        user at a time (requests, even whole table requests are sent piece meal."""
 
         uinfo_table = ["User: ", "Cards: ", "Hand Value: ", "Current Bet: ", "Game Status: "]
         # TODO look into how the list of cards is being sent from server to client. This could
         # muck up how the table is parsed below. 
-        message = kwargs['msg'].split(',')  # Splits our string up into a table. 
+        message = kwargs['msg'].split(';')  # Splits our string up into a table.
 
         for info, loc in enumerate(message):
             print('\n' + uinfo_table[loc] +  str(info))
 
 
     def print_bet_confirm(self, **kwargs):
-        'Correctly formats a message from the server informing the user that the bet has been confirmed.'
+        """Correctly formats a message from the server informing the user that the bet has been confirmed."""
         msg = kwargs['msg']
         if msg == "Accepted":
             print("The dealer acknowledges your bet")
@@ -134,15 +142,15 @@ class highroller(object):
 
 
     def print_stand_confirm(self, **kwargs):
-        'Correctly prints a confirmation of a stand message'
+        """Correctly prints a confirmation of a stand message"""
         print(kwargs['msg'])
 
     def print_broadcast(self,**kwargs):
-        'Basically it adds \'BROADCAST\' in front of a broadcast message'
+        """Basically it adds \'BROADCAST\' in front of a broadcast message"""
         print("BROADCAST: " + kwargs['msg'])
 
     def print_ace(self, **kwargs):
-        'A print method handling ace confirmation messages!'
+        """A print method handling ace confirmation messages!"""
         ace = kwargs['msg']
         if ace == 'HI':
             print("Big Brother Says Your Ace is best off high!")
@@ -151,14 +159,14 @@ class highroller(object):
         elif ace == 'MX': # Note: Ace High Value is returned in another message. May want to inform users of this
             null , null , tv = ace.split(',')
             print("The logic of the server sees advantages to your ace being either high or low. For what it's worth," +
-            " should your ace be counted as low you'd have a total value of " + tv)
+                  " should your ace be counted as low you'd have a total value of " + tv)
 
     def help(self):
         print('Help Documentation. Documentation will likely be read in from a text file for the sake of orderly code.')
 
     def main_loop(self):
-        '''This is the main loop that handles player interface. Joining the server may be mapped out to another method
-        but for now it is simply a part of the main loop It may also become part of the __init__ method.'''
+        """This is the main loop that handles player interface. Joining the server may be mapped out to another method
+        but for now it is simply a part of the main loop It may also become part of the __init__ method."""
 
         while True:
             message = str(input('> '))
@@ -166,7 +174,7 @@ class highroller(object):
 
 
 def main():
-    myplayer = highroller()
+    myplayer = Highroller()
     myplayer.main_loop()
 
 main()
