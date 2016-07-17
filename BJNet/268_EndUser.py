@@ -170,7 +170,7 @@ class Highroller(object):
 
         while True:
             message = str(input('> '))
-            self.encoder(message) # For simplicity in the main loop, sending the message is handled by the encoder
+            self.encoder(message)  # For simplicity in the main loop, sending the message is handled by the encoder
 
 
 def main():
