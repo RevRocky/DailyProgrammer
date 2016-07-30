@@ -2,6 +2,7 @@ import socket
 import re
 import threading
 import time
+import sys
 
 
 class Highroller(object):
@@ -24,7 +25,7 @@ class Highroller(object):
         # well.
         self.encodings = [(re.compile('^/bet', re.I),'be&'), (re.compile('^/quit', re.I), 'co&'), (re.compile('^/hit', re.I), 'ht&'),
                           (re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
-                          (re.compile('^/ginfo', re.I), 'ul&'), re.compile('^/pinfo', re.I), re.compile('^/force'),]
+                          (re.compile('^/ginfo', re.I), 'ul&'), (re.compile('^/force', re.I), 'ng&')]
 
         self.dispatch_prefixes = {'ch': self.print_chat, 'cb': self.print_bet_confirm, 'st': self.print_stand_confirm,
                                   'nc': self.print_newcard, 'br': self.print_broadcast, 'ac': self.print_ace,
@@ -48,10 +49,10 @@ class Highroller(object):
                     time.sleep(.5)
                     timeout -= .5
 
+
             if timeout == 0:
                 print("503. Server Timeout. The BJ net server at " + self.HOST + "does not appear to be online")
-
-
+                sys.exit(0)
             if data.decode('utf-8') == '300':
                 # 300 - HTTP Code for Accepted. We've found the server and it's accepted us.
                 print('300')
@@ -99,7 +100,7 @@ class Highroller(object):
             if regex_tuple[0].fullmatch(pre):
                 pre = regex_tuple[1]
                 # We may have to do something with our thread lock here. I'm not too certain.
-                self.sock.sendto(str.encode(pre + message), self.SERVER) # Not sure of we just send to the host or the
+                self.sock.sendto(str.encode(pre + message), self.SERVER)  # Not sure of we just send to the host or the
                 # sever tuple
                 return
 
@@ -138,7 +139,7 @@ class Highroller(object):
         if msg == "Accepted":
             print("The dealer acknowledges your bet")
         else:
-            print("You have bet more monies than you currently have. Enter a new figure after /bet")
+            print(msg)
 
 
     def print_stand_confirm(self, **kwargs):
@@ -156,8 +157,8 @@ class Highroller(object):
             print("Big Brother Says Your Ace is best off high!")
         elif ace == 'LO':
             print("Big Brother thinks your Ace is best off being kept low!")
-        elif ace == 'MX': # Note: Ace High Value is returned in another message. May want to inform users of this
-            null , null , tv = ace.split(',')
+        elif ace == 'MX':  # Note: Ace High Value is returned in another message. May want to inform users of this
+            null, null, tv = ace.split(',')
             print("The logic of the server sees advantages to your ace being either high or low. For what it's worth," +
                   " should your ace be counted as low you'd have a total value of " + tv)
 
@@ -166,11 +167,18 @@ class Highroller(object):
 
     def main_loop(self):
         """This is the main loop that handles player interface. Joining the server may be mapped out to another method
-        but for now it is simply a part of the main loop It may also become part of the __init__ method."""
+        but for now it is simply a part of the main loop It may also become part of the __init__ method.
+        This loop actually only handles outgoing communication where as incomming communications are handled by the
+        receiver (which is running in a separate thread)"""
 
         while True:
-            message = str(input('> '))
-            self.encoder(message)  # For simplicity in the main loop, sending the message is handled by the encoder
+            try:
+                message = str(input('> '))
+                self.encoder(message)  # For simplicity in the main loop, sending the message is handled by the encoder.
+            except EOFError:  # This is so that one can quickly + cleanly exit the programme in testing.
+                sys.exit(0)
+
+
 
 
 def main():

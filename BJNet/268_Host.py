@@ -1,7 +1,11 @@
+# TODO There must be some form of client timeout from the server's point of view, otherwise the game could be stuck in
+# a state that it could never exit.
+
 import socket
 import threading
 import time
 import queue
+import sys
 
 
 from random import randint
@@ -17,12 +21,14 @@ class CardServer(object):
 
         global mode
 
-        # Mode is just a renamed version of the argv.
-        if mode[2] == '-d':
+        # TODO This whole bloody section needs work.
+        try:
+            if mode[1] == '-d':
+                self.debug_mode = True
+            else:
+                self.debug_mode = False
+        except IndexError:
             self.debug_mode = True
-        else:
-            self.debug_mode = False
-
 
         # This block handles establishing connection info for our socket.
         self.HOST = '127.0.0.1'
@@ -77,8 +83,8 @@ class CardServer(object):
                 self.task_queue.put((decode_data, addr))
                 threading.Thread(target = self.parser).start()  # This launches a new thread.
 
-            except:
-                pass
+            except KeyboardInterrupt: # Server operator wants to force server shutdown.
+                self.shutdown()
         self.sock.close()
 
     def parser(self):
@@ -93,8 +99,9 @@ class CardServer(object):
         try:
             self.dispatch_prefixes[pre](msg=message, conn=addr)
         except KeyError:  # Some other client is trying to connect to the server. This sends a message informing the
-            # user to get the proper client
-            self.sock.sendto(str.encode('This server only handles BJNet clients. To get a BJNet client visit: ' +
+            # user to get the proper client...
+            self.debug_print(pre + '&' + message)
+            self.sock.sendto(str.encode('ch&This server only handles BJNet clients. To get a BJNet client visit: ' +
                                         'website.com'), addr)
 
     def new_connection(self, **kwargs):
@@ -104,12 +111,12 @@ class CardServer(object):
         self.debug_print("There is a new connection at" + str(connection) + "they are using the handle " + str(handle))
         # Here we check if the username is already being used. Multiple connections by the same client is handled server
         # side
-        for client in self.clients:
+        for client in self.clients.values():
             if handle in client[0]:
                 self.sock.sendto(str.encode("409"), connection)  # nh is prefix for new handle
                 return  # Now we cut out of the function
 
-        for client in self.new_friends:
+        for client in self.new_friends.values():
             if handle in client[0]:
                 self.sock.sendto(str.encode("409"), connection)  # nh is prefix for new handle
                 return  # Now we cut out of the function
@@ -158,17 +165,21 @@ class CardServer(object):
         # prefix re-attached. Unlike how this will be approached client-side we can simply append the prefix.
 
         message = str.encode('ch&' + message)
-        for client, information in self.clients.items():
-            self.sock.sendto(str.encode(message), client)
+        for client in self.clients:
+            self.sock.sendto(message, client)
 
-        for client, information in self.new_friends.items():
-            self.sock.sendto(str.encode(message), client)
+        for client in self.new_friends:
+            self.sock.sendto(message, client)
 
     def shutdown(self, **kwargs):
         """This function will work by taking a shutdown request from a user. It will IMMEDIATELY. Close the programme.
         It can only be sent during end-game/new-game and the message will require a server shut-down password that
         is defined in the __init__ method."""
-        pass
+
+        # TODO Implement non-dirty shutdown mechanisms.
+
+        self.broadcast("The server is now shutting down.")
+        sys.exit(0)
 
     def player_info_processing(self, **kwargs):
         """This is a one-stop shop method for returning information both about the users as well as the dealer.
@@ -184,11 +195,11 @@ class CardServer(object):
             mode = kwargs['msg']
             # TODO When testing it is highly likely that this will be a point of contention as spaces could easily
             # muck with everything.
-        except ValueError: # If the message is blank then we want info of all the users
+        except ValueError:  # If the message is blank then we want info of all the users
             mode = 'all'
         recipient = kwargs['conn']
 
-        self.debug_print(self.clients[conn][0] + " has made a user info request of type: " + mode.upper())
+        self.debug_print(self.clients[recipient][0] + " has made a user info request of type: " + mode.upper())
 
         if mode == 'dealer':
             message = self.get_player_info(self.dealer, 'dealer')
@@ -203,14 +214,14 @@ class CardServer(object):
                 self.sock.sendto("ch%SERVER: You are not currently in the game!")
                 return
         elif mode == 'all':
-            for client in self.clients.items():
+            for client in self.clients.values():
                 message = self.get_player_info(client[1])
                 self.sock.sendto(message, recipient)
                 self.sock.sendto(str.encode("ch&SERVER: You currently have " + str(self.clients[recipient][1].credits) +
                                             " credits."), recipient)
                 self.sock.sendto('ch&There are currently ' + str(len(self.new_friends)) + 'people waiting to join!')
         else: # They must have wanted a specific user's information.
-            for client in self.clients:
+            for client in self.clients.values():
                 if client[0] == mode: # In this case mode is the name of the user we are looking for
                     message = self.get_player_info(client[1])
                     self.sock.sendto(message, recipient)
@@ -245,7 +256,7 @@ class CardServer(object):
             message = "Dealer," + str(target.cards[1:]) + ';' + str(target.total_value) + ';' + status
             return str.encode('ui&' + message)
 
-    def new_round(self):
+    def new_round(self, **kwargs):
         """ This method begins a new round by ensuring the player list is up to date AND dealing cards/ dealing
         with black jack."""
 
@@ -255,12 +266,13 @@ class CardServer(object):
             return
 
         self.new_game = True  # Just in case we need to make use of states. If not this line will be removed.
-
         self.clients = {**self.clients, **self.new_friends}  # Merges our new friends with our clients
         self.new_friends = {}  # New friends is now emptied out.
+        self.debug_print("Now cleaning up users who left mid game.")
 
-        debug_print("Now cleaning up users who left mid game.")
-        for user in self.clients:
+        # Now we actually prune the users who left mid game.
+        for user in self.clients.values():
+            print(user, type(user[1]))  # DEBUG LINE
             if user[1].removal:
                 self.debug_print("The user " + user[0].upper() + 'is being pruned.')
                 del user
@@ -276,15 +288,13 @@ class CardServer(object):
         self.collecting_bets = True
 
         # TODO Check to ensure that the function returns how we think it ought to.
-        threading.Thread(target=self.countdown, args=('new', 90)).start()
-        while self.collecting_bets:
-            pass # Like with our end game function we assume the computer is still listening
 
+        self.countdown('new', 30)  # This is our countdown while we take new bets
         self.debug_print("Finished Collecting Bets")
 
         # Players who have not bet are now pruned from the list of active players. This is our time out.
         # Would this be better suited as it's own method or not?
-        for player in self.clients:
+        for player in self.clients.values():
             if player[1].current_bet == 0:  # If they have not made a bet...
                 self.new_friends[player] = deepcopy(self.clients[player])
                 self.debug_print("User " + self.new_friends[player][0] + " has been pruned for not making a bet.")
@@ -356,7 +366,7 @@ class CardServer(object):
 
         self.broadcast("If you'd like to disconnect from the server, you can now do so safely. Type /quit into your " +
                        "console")
-        threading.Thread(target=self.countdown, args='end').start()
+        self.countdown("end", 20)  # This is the timer for a user to safely exit from the server.
 
         # Note we should still be in the listening loop so this bit may all be redundant. We will keep the structure
         # incase testing reveals that we are not still in the listening loop.
@@ -375,16 +385,20 @@ class CardServer(object):
             try:
                 bet = int(kwargs['msg'])  # We need to explicitly cast the string to an int
             except ValueError:  # This would mean that the person bet some non integer value
-                self.sock.sendto(str.encode("ch&SERVER: Please give an integer value for the bet."), conn)
+                self.sock.sendto(str.encode("cb&Please give an integer value for the bet."), conn)
                 return  # We don't want to do the rest of this.
 
             player = self.clients[conn][1]
 
-            # Now we update the player's totals to reflect their bet
-            player.credits, player.current_bet = (player.credits - bet), bet
-            self.sock.sendto(str.encode('cb&' + str(bet)), conn) # Sends the player a message letting them know their bet was
-            # confirmed.
+            if bet <= player.credits:
+                # Now we update the player's totals to reflect their bet
+                player.credits, player.current_bet = (player.credits - bet), bet
+                self.sock.sendto(str.encode('cb&' + "Accepted"), conn)  # In forms player of bet
 
+            else:  # The player has bet an amount in excess of what they have
+                self.sock.sendto(str.encode('cb&' + "You have bet in excess of the amount of credits you have " +
+                                                    "please bet an amount less than " + str(player.credits) +
+                                                    "credits", conn))
         else:  # It's not a new game so we don't want to process any bets.
             self.sock.sendto(str.encode('ch&SERVER: You can\'t bet right now'), conn)
 
@@ -394,19 +408,20 @@ class CardServer(object):
         mode_dict = {'new': self.collecting_bets, 'end': self.end_game}  # Is this the best place for this?
         while seconds_left > 0:
             if seconds_left in [5, 15, 30, 45]:
-                self.broadcast(seconds_left)  # Lets players know that there is only a certain amount of time left
+                self.broadcast(str(seconds_left))  # Lets players know that there is only a certain amount of time left
                 # To opt out of the game.
             print("Next Phase in" + str(seconds_left))
             time.sleep(1)
             seconds_left -= 1 # We increment down.
         mode_dict[mode] = False
+        self.debug_print("Our switch is now" + str(mode_dict[mode]))  # Trying to figure out what is going on.
 
     def pay_winnings_clear_table(self):
 
         # We make the rounds of the table paying out winnings to each player.
         # We make use of the for loop to clear the table.
 
-        for client in self.clients:
+        for client in self.clients.values():
 
             if client[1].stand and self.dealer.bust: # If the dealer goes bust, all players not bust win their bet\
                 self.sock.sendto(str.encode("ch&SERVER: The dealer has gone bust. Since you also did not go bust, "
@@ -460,7 +475,7 @@ class CardServer(object):
         """This method broadcasts a server announcement to all players currently in the game. Relay message would be used
         but it is built in a fashion that is a bit too particular to chat messages."""
 
-        self.debugprint(message)  # Handy little debugging feature here, innit
+        print("BROADCAST: " + message)  # Handy little debugging feature here, innit
         # This code is simple, we just send out the message to everyone in the room!
         for client in self.clients:
             self.sock.sendto(str.encode('br&' + message), client)
@@ -696,7 +711,7 @@ class CardServer(object):
         """This method handles printing out messages to the console so that testers can better trouble shoot issues
         with the server"""
         if self.debug_mode:
-            print(time.ctime(time.time()) + "DEBUG MESSAGE: " + message)  # Perhaps we would want to time-stamp this?
+            print("DEBUG MESSAGE: " + message)  # Perhaps we would want to time-stamp this?
 
 
 class Player(object):
@@ -724,3 +739,6 @@ def main():
 
 mode = argv
 main()
+
+
+# TODO Implement a rudimentary console into the server, simply so i can safely shutdown with a /quit while debugging.
