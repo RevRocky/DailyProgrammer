@@ -303,6 +303,7 @@ class CardServer(object):
                                             'out this game You will automatically be entered into the next round.'),
                                  player)
             else:  # the player has made a bet thus we deal them cards.
+                # FOR SOME REASON CONTROL RETURNS TO SELF.PARSER RIGHT HERE #
                 self.debug_print("User " + self.clients[player][0] + " will be dealt into the game.")
                 for card in range(2):
                     self.deal_card(conn=player)
