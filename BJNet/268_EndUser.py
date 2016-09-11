@@ -21,13 +21,13 @@ class Highroller(object):
 
         # Now we set up our encoding and decoding "cyphers". Note to self. 'I' in the re.compile function call is to
         # ignore the case of the matching string. This is so someone could type /QUIT or /QUiT
-        # Note. I see the regular expressions as a potential point of conflict for the application so it must be tested
+        # Note. I sthreee the regular expressions as a potential point of conflict for the application so it must be tested
         # well.
         self.encodings = [(re.compile('^/bet', re.I),'be&'), (re.compile('^/quit', re.I), 'co&'), (re.compile('^/hit', re.I), 'ht&'),
                           (re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
                           (re.compile('^/ginfo', re.I), 'ul&'), (re.compile('^/force', re.I), 'ng&')]
 
-        self.dispatch_prefixes = {'ch': self.print_chat, 'cb': self.print_bet_confirm, 'st': self.print_stand_confirm,
+        self.dispatch_prefixes = {'ch': self.print_chat, 'cb': self.print_bet_confirm, 'sd': self.print_stand_confirm,
                                   'nc': self.print_newcard, 'br': self.print_broadcast, 'ac': self.print_ace,
                                   'ui': self.print_user_info}
         # TODO Complete this list.
@@ -116,8 +116,8 @@ class Highroller(object):
 
     def print_newcard(self, **kwargs):
         'This method handles and correctly formats a message when the end user gets a new card'
-        card, null, total = kwargs['msg'].partition(_)
-        print("You have been dealt a " + str(card) + ". This brings the total value of your cards to" +
+        card, null, total = kwargs['msg'].partition('_')
+        print("You have been dealt a " + str(card) + ". This brings the total value of your cards to " +
               str(total))
 
     def print_user_info(self, **kwargs):
