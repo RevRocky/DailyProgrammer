@@ -12,6 +12,10 @@ from lib.curry import curry
 class bjNET_GUI(object):
 
 	def __init__(self, parent):
+		"""The init method initialises our basic programme variables like our threadlock, some state flags, our codex
+		as well as handles (in a broad sense) connection to the server (actual connection is done by the connect
+		method. In addition, it handles the creation of both our connection window as well as the main GUI for
+		the programme!"""
 
 		# First we are going to initialise some of our basic programme governing variables
 		# This is our threadlock, some of our encoding and dispatch prefixes as well as some
@@ -42,54 +46,44 @@ class bjNET_GUI(object):
 		# to as well as their desired username.
 
 		# TODO Do these variables need to be class attributes?
-		self.connection_window = tk.Frame(self.my_parent)  # Creating a blank frame
-		self.connection_window.grid(column = 0, row = 0, columnspan = 3, rowspan = 4)  # Drawing it to the screen
+		self.connection_window = tk.Frame(self.my_parent, relief='sunken', width=175,
+									height=300)  # Creating a blank frame
 
-		# Now I am going to create some labels
-		welcome_label = tk.Label(self.connection_window, text = "Welcome to bjNET! <3",)
+		self.connection_window.grid(column = 0, row = 0, columnspan = 3, rowspan = 6)  # Drawing it to the screen
 
-		handle_label = tk.Label(self.connection_window, text = 'Username:', anchor = tk.W)  # Left Justified
-		server_label = tk.Label(self.connection_window, text = "SERVER IP:", anchor = tk.W)  # Left Justified
-
-		# Now we define our text entry boxes
-		handle_input = tk.Entry(self.connection_window)
-		handle = handle_input.get()  # Obtaining input
-
-		server_input = tk.Entry(self.connection_window)
-		server = server_input.get()  # Obtaining that sweet sweet INFORRRRRMATION!
-
-		# Finally we define two buttons Join and Quit
-		join_button = tk.Button(self.connection_window, command=curry(self.connect, handle, server))
-		quit_button = tk.Button(self.connection_window, command=curry(sys.exit, 0), text="Quit")
-
-		# Now let's pack these widgets into a frame!
-
+		# Now I am going to create + draw some labels
+		welcome_label = tk.Label(self.connection_window, text="Welcome to bjNET! <3",)
 		welcome_label.grid(column=1, row=0)  # We want this to be top and centre
 
-		handle_label.grid(column=0, row=1, sticky='w')
-		handle_input.grid(column=1, row=1, sticky='w')
+		handle_label = tk.Label(self.connection_window, text='USERNAME:', anchor=tk.W)  # Left Justified
+		handle_label.grid(column=0, row=2, sticky='e', pady=2)
 
-		server_label.grid(column=0, row=2, sticky='w')
-		server_input.grid(column=1, row=2, sticky='w')
+		server_label = tk.Label(self.connection_window, text="SERVER IP:", anchor=tk.W)  # Left Justified
+		server_label.grid(column=0, row=3, sticky='e', pady=2)
 
-		join_button.grid(column=1, row=3)
-		quit_button.grid(column=2, row=3)
+		# Now we define + draw our text entry boxes
+		handle_input = tk.Entry(self.connection_window, width=30)
+		handle_input.grid(column=1, row=2, columnspan=2, sticky='w', pady=2, padx=5,)
 
+		server_input = tk.Entry(self.connection_window, width=30)
+		server_input.grid(column=1, row=3, columnspan=2, sticky='w', pady=2, padx=5)
 
+		# Finally we define + draw two buttons Join and Quit
+		join_button = tk.Button(self.connection_window, command=curry(self.connect, handle_input, server_input),
+								text="Join", width=7)
+		join_button.grid(column=1, row=5, rowspan=1, sticky='es', pady=10, padx=5)
 
+		quit_button = tk.Button(self.connection_window, command=curry(sys.exit, 0), text="Quit", width=7)
+		quit_button.grid(column=2, row=5, rowspan=1, sticky='ws', pady=10, padx=5)
 
+	def connect(self, handle_input, server_input):
 
+		# We pass in our widgets and take the information from them in the local name space. It seems to be a good_enough
+		# way to do it!
+		handle = handle_input.get()
+		server = server_input.get()
+		print(handle, server)
 
-
-
-
-
-
-
-
-
-	def connect(self, handle, server):
-		pass
 
 	def listen(self):
 		pass
@@ -150,5 +144,6 @@ def main():
 
 	root = tk.Tk()
 	bj_gui = bjNET_GUI(root)
+	root.mainloop()
 
 main()
