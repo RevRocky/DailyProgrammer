@@ -1,0 +1,5 @@
+lib is where helpful modules for this programme go!
+
+Current Modules:
+
+curry.py - contains the curry function used to package functions!

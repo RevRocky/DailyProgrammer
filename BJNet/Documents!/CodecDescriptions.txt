@@ -62,6 +62,7 @@ A message is to consist of two parts a prefix and then a message body. Some mess
             The message is sent multiple times each with a different user's information.
             Format is:
 
+
             ui&ALIAS,HAND,TOTALVALUE,CURRENTBET,STATUS
                 ALIAS - The name of the user
                 Hand - Their Current Hand (which cards they have)
@@ -74,4 +75,7 @@ A message is to consist of two parts a prefix and then a message body. Some mess
                 NULL - If a player requests information about themselves when they are not currently in the game then
                 the message will simply be null.
 
+
+        oc - This will have to be configured in a way that servers send it but only the GUI app will use it.
+            oc&[USER][CARD][NEW_TOTAL]
 

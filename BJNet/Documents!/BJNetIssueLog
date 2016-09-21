@@ -1,0 +1,42 @@
+BJ Net Issue Log: 
+
+Blackjack Handling Bug:
+
+When the user gets blackjack the game throws an index error when processing the dealers cards.
+Must try to replicate
+
+Thread Logic Error:
+
+One of the big errors in logic that this programme has is that a the game state ends up being handled by more than one thread. This leads to instability if we want to... say... exit out of said thread and reTturn to the "lobby" where there would be no gamestate. 
+
+The potential solutions are below
+
+1) The easiest, and likely, best solution is to have each discrete action handled by the programme be handled in a new thread. This will likely cause little issue with updating our player information but could potentially make gamestate transitions a bit rocky. 
+	((Apparently one can not spawn a new thread from any thread other than the main thread. This makes our task quite tricky))
+
+
+
+
+Countdown Mode Bug:
+The countdown function is not correctly setting modes to False when the timer runs out. This is due to the fact that setting
+mode_dict[mode] to False does not impact our class attribute.
+
+((RESOLVED: Countdown method is now called by
+
+method = self.countdown(args) With the Countdown method returning False. This has resolved the issue and the state-flags are now
+set appropriately.)
+
+
+
+Text Input Displays Wonky
+Our input lines inconsistently display a '>' and sometimes that is affixed to messages being recieved from the server. 
+
+(A possible resolution is that once we get a GUI is that input will be seperate from the console printing. This would still be best fixed by beta.)
+
+Aces are Wierd:
+I don't even know how to dissect this bug. A player being dealt an ace, especially in the first round though causes weird behaviour in the programme. I think the best way to analyse this is to perhaps force an ace to be dealt in the first hand so this behaviour can be better examined.
+
+((RESOLVED: It was the key error bug being thrown by the improper calling of aces_logic and inconsistent use of the player object. Some rejiggering of our pointers has seemed to put away the problem.)) 
+
+/quit Functionality Issue
+/Quit Won't actually disconnect the user and even threw a key error
