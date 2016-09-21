@@ -1,4 +1,3 @@
-
 import socket
 import re
 import threading
@@ -7,7 +6,7 @@ import sys
 
 import tkinter as tk
 
-import lib.curry.curry as curry
+from lib.curry import curry
 
 
 class bjNET_GUI(object):
