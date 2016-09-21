@@ -6,7 +6,7 @@ import sys
 
 import tkinter as tk
 
-from lib import curry.curry
+import lib.curry.curry
 
 
 class bjNET_GUI(object):
