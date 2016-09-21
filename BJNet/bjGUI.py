@@ -4,10 +4,10 @@ import threading
 import time
 import sys
 
-
 import tkinter as tk
 
-import lib.curry as curry
+from lib import curry
+
 
 class bjNET_GUI(object):
 
@@ -60,7 +60,7 @@ class bjNET_GUI(object):
 
 		# Finally we define two buttons Join and Quit
 		join_button = tk.Button(self.connection_window, command=curry(self.connect, handle, server))
-		quit_button = tk.Button(self.connection_window, command= curry(sys.exit, 0), text="Quit")
+		quit_button = tk.Button(self.connection_window, command=curry(sys.exit, 0), text="Quit")
 
 		# Now let's pack these widgets into a frame!
 
@@ -72,8 +72,8 @@ class bjNET_GUI(object):
 		server_label.grid(column=0, row=2, sticky='w')
 		server_input.grid(column=1, row=2, sticky='w')
 
-		join_button.pack(column=1, row=3)
-		quit_button.pack(column=2, row=3)
+		join_button.grid(column=1, row=3)
+		quit_button.grid(column=2, row=3)
 
 
 
