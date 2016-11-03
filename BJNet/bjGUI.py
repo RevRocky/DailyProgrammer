@@ -131,13 +131,27 @@ class bjNET_GUI(object):
 		"""This method handles the meat of the programme including handling incoming and outgoing connections
 		as well as drawing the main gui elements for the game."""
 
-		self.main_window = tk.Frame(self.my_parent, relief='sunken', width=600,
-										  height=700,)
-		self.main_window.pack()
+		self.main_window = tk.Frame(self.my_parent, relief='sunken', width=1200,
+										  height=1000,)
+		self.main_window.grid(column=0, row=0, columnspan=10, rowspan=8)
 
-		playing_table = tk.Canvas(self.main_window, width=500, height=300)
+		# TODO This canvas will have to be worked on quite a bit more.
+		playing_table = tk.Canvas(self.main_window, width=600, height=700)
 		playing_table.create_rectangle(0, 0, 300, 500, fill="green")
-		playing_table.pack()
+		playing_table.grid(column=0, row=0, rowspan=3, columnspan=5, sticky="nw", pady=3, padx=3)
+		sep = tk.SEPARATOR(self.main_window, orient=HORIZONTAL)
+		sep.grid(column=0, row=4, pady=3, padx=3)
+
+		# Drawing the text window and associated elements
+		chat_window = tk.Text(self.main_window, width=800, height=700, wrap="word", state="disabled")
+		chat_scroll = tk.Scrollbar(self.main_window, orient=VERTICAL, command=chat_window.yview())
+		chat_window['yscrollcommand'] = chat_scroll.set
+		chat_window.grid(column=0, row=5, rowspan=4, columnspan=7, sticky="w", pady=3, padx=2)
+		chat_scroll.grid(column=8, row=5, columnspan=1, rowspan=4,sticky=e, pady=3)
+
+
+
+
 
 	def listen(self):
 		pass
