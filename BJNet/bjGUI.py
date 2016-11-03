@@ -5,12 +5,12 @@ import time
 import sys
 
 import tkinter as tk
+from tkinter import messagebox
 
 from lib.curry import curry
 
 
 class bjNET_GUI(object):
-
 	def __init__(self, parent):
 		"""The init method initialises our basic programme variables like our threadlock, some state flags, our codex
 		as well as handles (in a broad sense) connection to the server (actual connection is done by the connect
@@ -23,6 +23,7 @@ class bjNET_GUI(object):
 
 		self.tLock = threading.Lock()
 		self.shutdown = False
+		self.connected = False
 		self.my_parent = parent
 
 		# Now we set up our encoding and decoding "cyphers". Note to self. 'I' in the re.compile function call is to
@@ -32,27 +33,26 @@ class bjNET_GUI(object):
 
 		# Encodings go out
 		self.encodings = [(re.compile('^/bet', re.I), 'be&'), (re.compile('^/quit', re.I), 'co&'),
-								(re.compile('^/hit', re.I), 'ht&'),
-								(re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
-								(re.compile('^/ginfo', re.I), 'ul&'), (re.compile('^/force', re.I), 'ng&')]
+						  (re.compile('^/hit', re.I), 'ht&'),
+						  (re.compile('^/stand', re.I), 'sd&'), (re.compile('^/pinfo', re.I), 'pl&'),
+						  (re.compile('^/ginfo', re.I), 'ul&'), (re.compile('^/force', re.I), 'ng&')]
 
 		# Dispatch is on the way in!
 		self.dispatch_prefixes = {'ch': self.handle_cards, 'cb': self.handle_bet_confirm(),
-											'sd': self.handle_stand_confirm(), 'nc': self.handle_cards,
-											'br': self.handle_broadcast(), 'ac': self.handle_ace,
-											'ui': self.handle_user_info, 'oc': self.handle_others_cards}
+								  'sd': self.handle_stand_confirm(), 'nc': self.handle_cards,
+								  'br': self.handle_broadcast(), 'ac': self.handle_ace,
+								  'ui': self.handle_user_info, 'oc': self.handle_others_cards}
 
 		# Now we are going to create a dialogue that allows for the user to input the server they'd like to connect
 		# to as well as their desired username.
-
 		# TODO Do these variables need to be class attributes?
 		self.connection_window = tk.Frame(self.my_parent, relief='sunken', width=175,
-									height=300)  # Creating a blank frame
+										  height=300)  # Creating a blank frame
 
-		self.connection_window.grid(column = 0, row = 0, columnspan = 3, rowspan = 6)  # Drawing it to the screen
+		self.connection_window.grid(column=0, row=0, columnspan=3, rowspan=6)  # Drawing it to the screen
 
 		# Now I am going to create + draw some labels
-		welcome_label = tk.Label(self.connection_window, text="Welcome to bjNET! <3",)
+		welcome_label = tk.Label(self.connection_window, text="Welcome to bjNET! <3", )
 		welcome_label.grid(column=1, row=0)  # We want this to be top and centre
 
 		handle_label = tk.Label(self.connection_window, text='USERNAME:', anchor=tk.W)  # Left Justified
@@ -63,12 +63,14 @@ class bjNET_GUI(object):
 
 		# Now we define + draw our text entry boxes
 		handle_input = tk.Entry(self.connection_window, width=30)
-		handle_input.grid(column=1, row=2, columnspan=2, sticky='w', pady=2, padx=5,)
+		handle_input.grid(column=1, row=2, columnspan=2, sticky='w', pady=2, padx=5, )
 
 		server_input = tk.Entry(self.connection_window, width=30)
 		server_input.grid(column=1, row=3, columnspan=2, sticky='w', pady=2, padx=5)
 
 		# Finally we define + draw two buttons Join and Quit
+
+		# Dat error handling
 		join_button = tk.Button(self.connection_window, command=curry(self.connect, handle_input, server_input),
 								text="Join", width=7)
 		join_button.grid(column=1, row=5, rowspan=1, sticky='es', pady=10, padx=5)
@@ -76,14 +78,66 @@ class bjNET_GUI(object):
 		quit_button = tk.Button(self.connection_window, command=curry(sys.exit, 0), text="Quit", width=7)
 		quit_button.grid(column=2, row=5, rowspan=1, sticky='ws', pady=10, padx=5)
 
+	# TODO Fix issue where failed connection results in programme freeze.
 	def connect(self, handle_input, server_input):
+		"""Connects the user to the bjNET server or informs them that their connection couldn't work because either
+		their user name was already taken or the server did not respond in 60 seconds."""
 
 		# We pass in our widgets and take the information from them in the local name space. It seems to be a good_enough
 		# way to do it!
 		handle = handle_input.get()
-		server = server_input.get()
-		print(handle, server)
+		server = "127.0.0.1"  # TODO remove the hard coding of server ip
+		self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		self.sock.bind((server, 0))
+		self.sock.setblocking(True)
+		self.server = (server, 5000)  # Sends messages out on port 5000
 
+		timeout = 60  # Give the server 60 seconds to respond
+
+		self.sock.sendto(str.encode('jo&' + handle), self.server)  # Attempting to connect to server
+
+		while not self.connected:
+			while timeout > 0:
+				try:
+					data, null = self.sock.recvfrom(1024)  # Receiving our data
+					break  # break from our inner loop
+				except ConnectionResetError:
+					tk.messagebox.showinfo(message="The connection was closed by the server. Please try again!",
+										   icon='warning', title='Connection Error', parent=self.connection_window)
+					return
+				finally:  # 5000% kosher
+					time.sleep(0.5)
+					timeout -= .5  # Increment our clock down.
+
+				# Handling timeouts, user_name overlaps and finally being accepted to the server.
+			if timeout == 0:
+				# Create a popup window letting the user know that the server is not awake and to try another server
+				tk.messagebox.showinfo(message="The Connection timed out. :_(",
+									   detail="All that internet... and it STILL wasn't good enough",
+									   icon='Warning', title='Connection Error')
+				return
+			elif data.decode('utf-8') == '409':  # User has chosen a name already in use.
+				# Throw an error!
+				tk.messagebox.showinfo(message="The handle you want to use is already taken.",
+									   title='Connection Error', parent=self.connection_window)
+				return
+			elif data.decode('utf-8') == '300':  # User has been accepted!
+				self.connected = True
+				self.connection_window.grid_forget()  # Clears the window
+				self.connection_window.destroy()
+				self.main_pgm_loop()  # Is there a way to do this with out preserving a the connection method on the stack.
+
+	def main_pgm_loop(self):
+		"""This method handles the meat of the programme including handling incoming and outgoing connections
+		as well as drawing the main gui elements for the game."""
+
+		self.main_window = tk.Frame(self.my_parent, relief='sunken', width=600,
+										  height=700,)
+		self.main_window.pack()
+
+		playing_table = tk.Canvas(self.main_window, width=500, height=300)
+		playing_table.create_rectangle(0, 0, 300, 500, fill="green")
+		playing_table.pack()
 
 	def listen(self):
 		pass
@@ -102,7 +156,6 @@ class bjNET_GUI(object):
 
 	def handle_user_info(self):
 		pass
-
 
 	### These next few methods could easily be combined into a handle_game method or something of the like
 	### that handles all messages coming from the server meant to handle game state stuff (it will all be placed
@@ -123,6 +176,7 @@ class bjNET_GUI(object):
 	def handle_ace(self):
 		"""This is a special method that handles ace-logic messages!"""
 		pass
+
 	### Below will be other methods that will define further GUI based functionality!
 
 	def wipe_table(self):
@@ -141,9 +195,10 @@ class bjNET_GUI(object):
 
 def main():
 	# The first thing we will do in main is establish the foundations for our GUI
-
 	root = tk.Tk()
+	root.wm_title("bjNET ALPHA. SWAG.")
 	bj_gui = bjNET_GUI(root)
 	root.mainloop()
+
 
 main()
