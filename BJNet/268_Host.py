@@ -86,7 +86,7 @@ class CardServer(object):
         while not self.quitting:
             try:
                 data, addr = self.sock.recvfrom(2048)
-                decode_data = data.decode('utf-8')\
+                decode_data = data.decode('utf-8')
 
                 # We now add our decoded data to the queue.
                 self.task_queue.put((decode_data, addr))
