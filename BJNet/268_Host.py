@@ -36,7 +36,7 @@ class CardServer(object):
 
         # This block handles establishing connection info for our socket.
         self.HOST = '127.0.0.1'
-        self.PORT = 5000
+        self.PORT = 15000
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.HOST, self.PORT))
         self.sock.setblocking(True)
@@ -92,7 +92,7 @@ class CardServer(object):
                 self.task_queue.put((decode_data, addr))
                 threading.Thread(target = self.parser).start()  # This launches a new thread.
 
-            except KeyboardInterrupt: # Server operator wants to force server shutdown.
+            except KeyboardInterrupt:  # Server operator wants to force server shutdown.
                 self.shutdown()
         self.sock.close()
 
